@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Роли пользователей
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+// Дни недели
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// Состояние занятия
+enum LessonStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Статус посещаемости
+enum AttendanceStatus {
+  UNMARKED
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+// Способ отметки
+enum AttendanceSource {
+  QR
+  MANUAL
+}
+
+// Тип уведомления
+enum NotificationType {
+  LOW_ATTENDANCE
+  LESSON_TIME
+}
+
+// Состояние уведомления
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NOT_SPECIFIED
+}
+
+// Пользователи системы
+model User {
+  id           String  @id @default(cuid())
+  fullName     String
+  login        String  @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean @default(true)
+  gender       Gender  @default(NOT_SPECIFIED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentProfile StudentProfile?
+
+  // Преподаватель и куратор
+  schedules     Schedule[]
+  curatedGroups Group[]    @relation("Curator")
+
+  // Создание QR-сессий
+  sessionsCreated AttendanceSession[] @relation("SessionCreator")
+
+  // Кто изменил посещаемость
+  attendanceMarked Attendance[] @relation("AttendanceMarker")
+
+  // История изменений
+  auditActions AttendanceAudit[] @relation("AuditActor")
+
+  // Уведомления
+  notifications Notification[]
+
+  // Сессии пользователей
+  sessions Session[]
+}
+
+// Учебные группы
+model Group {
+  id   String @id @default(cuid())
+  name String @unique
+
+  curatorId String?
+  curator   User?   @relation("Curator", fields: [curatorId], references: [id], onDelete: SetNull)
+
+  students  StudentProfile[]
+  schedules Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Данные студента
+model StudentProfile {
+  id            String  @id @default(cuid())
+  userId        String  @unique
+  groupId       String
+  studentNumber String? @unique
+
+  isHead Boolean @default(false)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Restrict)
+
+  attendance    Attendance[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Учебные предметы
+model Subject {
+  id   String  @id @default(cuid())
+  name String  @unique
+  code String? @unique
+
+  schedules Schedule[]
+
+  createdAt DateTime @default(now())
+}
+
+// Шаблоны расписания
+model Schedule {
+  id String @id @default(cuid())
+
+  groupId   String
+  subjectId String
+  teacherId String
+
+  dayOfWeek WeekDay
+  startTime String
+  endTime   String
+  classroom String
+
+  // Период действия расписания
+  validFrom DateTime?
+  validTo   DateTime?
+  isActive  Boolean   @default(true)
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  lessons Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LessonType {
+  LECTURE // Лекция
+  PRACTICE // Практика
+  LAB // Лабораторная работа
+  COURSE_WORK // Курсовая работа
+  EXAM // Экзамен
+  CREDIT // Зачёт
+  THESIS // ВКР
+  CONSULTATION // Консультация
+  OTHER // Другое
+}
+
+// Конкретные занятия
+model Lesson {
+  id         String @id @default(cuid())
+  scheduleId String
+
+  date      DateTime @db.Date
+  startsAt  DateTime
+  endsAt    DateTime
+  classroom String
+
+  lessonType LessonType
+
+  status LessonStatus @default(PLANNED)
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+
+  sessions   AttendanceSession[]
+  attendance Attendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Одно занятие по шаблону на дату
+  @@unique([scheduleId, date])
+  @@index([date, status])
+}
+
+// QR-сессии внутри занятия
+model AttendanceSession {
+  id       String @id @default(cuid())
+  lessonId String
+
+  // Хеши текущего QR и кода
+  tokenHash            String   @unique
+  confirmationCodeHash String
+  tokenExpiresAt       DateTime
+
+  isActive  Boolean   @default(true)
+  startedAt DateTime  @default(now())
+  closedAt  DateTime?
+
+  createdById String
+  createdBy   User   @relation("SessionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  attendance Attendance[]
+
+  @@index([lessonId, isActive])
+}
+
+// Итоговая посещаемость студента за занятие
+model Attendance {
+  id        String @id @default(cuid())
+  lessonId  String
+  studentId String
+
+  status AttendanceStatus  @default(UNMARKED)
+  source AttendanceSource?
+
+  markedAt   DateTime?
+  markedById String?
+
+  // QR-сессия, через которую отметился студент
+  sessionId String?
+  session   AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  markedBy User? @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+
+  audits AttendanceAudit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Одна отметка на студента за занятие
+  @@unique([lessonId, studentId])
+  @@index([studentId, status])
+}
+
+// История исправлений посещаемости
+model AttendanceAudit {
+  id           String @id @default(cuid())
+  attendanceId String
+
+  oldStatus AttendanceStatus?
+  newStatus AttendanceStatus
+
+  oldSource AttendanceSource?
+  newSource AttendanceSource?
+
+  reason String?
+
+  changedById String
+  changedBy   User   @relation("AuditActor", fields: [changedById], references: [id], onDelete: Restrict)
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([attendanceId, createdAt])
+}
+
+// Уведомления кураторов
+model Notification {
+  id String @id @default(cuid())
+
+  recipientId String
+  studentId   String?
+
+  type   NotificationType
+  status NotificationStatus @default(UNREAD)
+
+  title   String
+  message String
+
+  // Посещаемость на момент уведомления
+  attendanceRate Float?
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  student StudentProfile? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([recipientId, status])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}

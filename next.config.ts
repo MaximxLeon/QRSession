@@ -1,20 +1,24 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: [
+    '192.168.0.183',
+    'last-approximate-assess-spirituality.trycloudflare.com'
+  ],
+
   experimental: {
-    agentFeedback: true,
+    agentFeedback: true
   },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
     rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
-};
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+        as: '*.css'
+      }
+    }
+  }
+}
 
-export default nextConfig;
+export default nextConfig
