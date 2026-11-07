@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import { useForm } from 'react-hook-form'
 
 import { useGroups } from '@/entities/group'
@@ -23,6 +25,17 @@ const weekDays = [
   { value: 'SUNDAY', label: 'Воскресенье' }
 ]
 
+// Время начала и окончания каждой пары.
+const lessonPeriods = [
+  { number: 1, startTime: '08:00', endTime: '09:30' },
+  { number: 2, startTime: '09:50', endTime: '11:20' },
+  { number: 3, startTime: '11:40', endTime: '13:10' },
+  { number: 4, startTime: '13:40', endTime: '15:10' },
+  { number: 5, startTime: '15:20', endTime: '16:50' },
+  { number: 6, startTime: '17:00', endTime: '18:30' },
+  { number: 7, startTime: '18:40', endTime: '20:10' }
+]
+
 const inputClassName =
   'mt-1 w-full rounded-lg border border-border-input bg-input-bg px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-focus-ring/20'
 
@@ -35,10 +48,13 @@ export function ScheduleCreateForm() {
 
   const createSchedule = useCreateSchedule()
 
+  const [selectedPeriod, setSelectedPeriod] = useState('1')
+
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors }
   } = useForm<CreateScheduleFormValues>({
     resolver: zodResolver(createScheduleSchema),
@@ -47,8 +63,8 @@ export function ScheduleCreateForm() {
       subjectId: '',
       teacherId: '',
       dayOfWeek: 'MONDAY',
-      startTime: '09:00',
-      endTime: '10:30',
+      startTime: '08:00',
+      endTime: '09:30',
       classroom: '',
       validFrom: '',
       validTo: ''
@@ -61,6 +77,23 @@ export function ScheduleCreateForm() {
   const referencesError =
     groupsQuery.isError || subjectsQuery.isError || teachersQuery.isError
 
+  // При выборе номера пары автоматически устанавливаем время.
+  const handlePeriodChange = (value: string) => {
+    setSelectedPeriod(value)
+
+    const period = lessonPeriods.find(item => item.number === Number(value))
+
+    if (!period) return
+
+    setValue('startTime', period.startTime, {
+      shouldValidate: true
+    })
+
+    setValue('endTime', period.endTime, {
+      shouldValidate: true
+    })
+  }
+
   const onSubmit = async (values: CreateScheduleFormValues) => {
     try {
       await createSchedule.mutateAsync({
@@ -69,6 +102,7 @@ export function ScheduleCreateForm() {
       })
 
       reset()
+      setSelectedPeriod('1')
     } catch {
       // Ошибка отображается ниже через состояние mutation.
     }
@@ -191,34 +225,23 @@ export function ScheduleCreateForm() {
               </select>
             </label>
 
-            {/* Начало */}
+            {/* Номер пары */}
             <label className={labelClassName}>
-              Начало
-              <input
-                type="time"
-                {...register('startTime')}
+              Номер пары
+              <select
+                value={selectedPeriod}
+                onChange={event => handlePeriodChange(event.target.value)}
                 className={inputClassName}
-              />
-              {errors.startTime && (
-                <span className="mt-1 block text-sm text-danger-text">
-                  {errors.startTime.message}
-                </span>
-              )}
-            </label>
-
-            {/* Окончание */}
-            <label className={labelClassName}>
-              Окончание
-              <input
-                type="time"
-                {...register('endTime')}
-                className={inputClassName}
-              />
-              {errors.endTime && (
-                <span className="mt-1 block text-sm text-danger-text">
-                  {errors.endTime.message}
-                </span>
-              )}
+              >
+                {lessonPeriods.map(period => (
+                  <option
+                    key={period.number}
+                    value={period.number}
+                  >
+                    {period.number}-я пара ({period.startTime}–{period.endTime})
+                  </option>
+                ))}
+              </select>
             </label>
 
             {/* Аудитория */}
@@ -266,6 +289,16 @@ export function ScheduleCreateForm() {
               )}
             </label>
           </div>
+
+          {/* Время хранится в форме, но пользователь его не вводит. */}
+          <input
+            type="hidden"
+            {...register('startTime')}
+          />
+          <input
+            type="hidden"
+            {...register('endTime')}
+          />
 
           {createSchedule.isError && (
             <p className="mt-4 text-sm text-danger-text">

@@ -31,7 +31,7 @@ export async function POST(
     const { sessionId } = await params
 
     // Генерируем новый токен и код.
-    const token = randomBytes(32).toString('hex')
+    const token = randomBytes(16).toString('hex')
     const confirmationCode = randomInt(100000, 1000000).toString()
 
     const now = new Date()

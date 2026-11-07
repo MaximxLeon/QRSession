@@ -85,14 +85,17 @@ export function AttendanceScanner() {
           isProcessingRef.current = true
 
           try {
-            let parsed: QrData
+            const [sessionId, token] = decodedText.split('|')
 
-            try {
-              parsed = JSON.parse(decodedText) as QrData
-            } catch {
+            if (!sessionId || !token || decodedText.split('|').length !== 2) {
               toast.error('QR-код имеет неверный формат')
               isProcessingRef.current = false
               return
+            }
+
+            const parsed: QrData = {
+              sessionId,
+              token
             }
 
             if (
@@ -202,7 +205,7 @@ export function AttendanceScanner() {
           type="button"
           onClick={isScanning ? stopScanner : startScanner}
           disabled={isStarting}
-          className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded-lg bg-primary px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {isStarting
             ? 'Запуск камеры...'

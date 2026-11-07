@@ -1,7 +1,7 @@
 'use client'
 
 import type { Lesson, TeacherLessonSchedule } from '@/entities/teacher-lesson'
-// Укажи здесь фактический путь импорта QrSession из твоего проекта.
+import { useCompleteLesson } from '@/features/teacher/complete-lesson'
 import { CreateLessonButton } from '@/features/teacher/create-lesson'
 import { AttendanceList } from '@/features/teacher/update-student-attendance'
 
@@ -50,6 +50,20 @@ export function TeacherLessonCard({
 }: TeacherLessonCardProps) {
   const students = item.group.students ?? []
   const attendance = lesson?.attendance ?? []
+
+  const completeMutation = useCompleteLesson()
+
+  const handleCompleteLesson = () => {
+    if (!lesson || lesson.status !== 'IN_PROGRESS') return
+
+    const confirmed = window.confirm(
+      'Завершить пару? Все неотмеченные студенты будут отмечены как отсутствующие.'
+    )
+
+    if (!confirmed) return
+
+    completeMutation.mutate(lesson.id)
+  }
 
   return (
     <article className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -102,6 +116,30 @@ export function TeacherLessonCard({
             <QrSession lessonId={lesson.id} />
           </div>
         )}
+
+      {/* Завершение пары */}
+      {lesson?.status === 'IN_PROGRESS' && (
+        <div className="mt-5 border-t border-border-light pt-4">
+          <button
+            type="button"
+            onClick={handleCompleteLesson}
+            disabled={completeMutation.isPending}
+            className="w-full rounded-xl bg-danger-bg px-4 py-3 text-sm font-semibold text-danger-text transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {completeMutation.isPending
+              ? 'Завершение пары...'
+              : 'Завершить пару'}
+          </button>
+
+          {completeMutation.isError && (
+            <p className="mt-2 text-sm text-danger-text">
+              {completeMutation.error instanceof Error
+                ? completeMutation.error.message
+                : 'Не удалось завершить занятие. Попробуйте ещё раз.'}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Посещаемость */}
       {lesson && lesson.status !== 'CANCELLED' && (
