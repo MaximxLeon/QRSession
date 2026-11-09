@@ -3,7 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   allowedDevOrigins: [
     '192.168.0.183',
-    'last-approximate-assess-spirituality.trycloudflare.com'
+    'vbulletin-gba-high-arguments.trycloudflare.com'
   ],
 
   experimental: {

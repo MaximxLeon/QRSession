@@ -16,16 +16,18 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <Suspense fallback={<div>Загрузка...</div>}>
+    <Suspense fallback={<div className="p-6">Загрузка...</div>}>
       <AdminGuard>
-        <div className="min-h-screen bg-slate-100 md:flex">
+        <div className="min-h-screen bg-background lg:flex lg:h-screen lg:min-h-0 lg:overflow-hidden">
           <Sidebar
-            title="Attendance"
+            title="QRSession"
             subtitle="Панель администратора"
             items={adminMenu}
           />
 
-          <main className="min-w-0 flex-1 p-6 md:p-8">{children}</main>
+          <main className="min-w-0 flex-1 p-6 md:p-8 lg:overflow-y-auto">
+            {children}
+          </main>
         </div>
       </AdminGuard>
     </Suspense>

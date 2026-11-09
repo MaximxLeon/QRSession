@@ -12,7 +12,7 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: 'Attendance',
+  title: 'QRSession',
   description: 'University attendance system'
 }
 

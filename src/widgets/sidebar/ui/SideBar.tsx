@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 
 import type { SidebarProps } from '../model'
-import { SidebarFooter } from './SidebarFooter'
+
 import { SidebarHeader } from './SidebarHeader'
+import { SidebarNav } from './SidebarNav'
+import { SidebarFooter } from './SidebarFooter'
 import { SidebarMobileHeader } from './SidebarMobileHeader'
 import { SidebarMobileMenu } from './SidebarMobileMenu'
-import { SidebarNav } from './SidebarNav'
 
 export function Sidebar({
   items,
